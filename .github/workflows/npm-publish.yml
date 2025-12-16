@@ -60,16 +60,20 @@ jobs:
         run: |
           git config --global user.email "${{ env.git_email }}"
           git config --global user.name "${{ env.git_username }}"
+          git pull
           USER_INPUT=${{ github.event.inputs.bumpversion }}          
           VERSION=${USER_INPUT:-"patch"}  
           npm version $VERSION --no-commit
           export MSG=`npm pkg get version --workspaces=false`
-          git pull
           git add . 
-          git commit -m "${MSG} kms-ethereum-signing"
-          if [ "${{ env.push_version_commit }}" = "true" ]; then
-            git push --follow-tags
+          if [ -n "$(git status --porcelain)" ]; then
+            git commit -m "${MSG} kms-ethereum-signing"
+            if [ "${{ env.push_version_commit }}" = "true" ]; then
+              git push --follow-tags
+            else
+              echo "Skipping git push --follow-tags"
+            fi
           else
-            echo "Skipping git push --follow-tags"
+            echo "No changes to commit"
           fi
           ${{ env.publish_cmd }}
