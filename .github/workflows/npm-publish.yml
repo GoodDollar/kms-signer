@@ -38,41 +38,34 @@ jobs:
           node-version: "18"
           # setting a registry enables the NODE_AUTH_TOKEN env variable where we can set an npm token.  REQUIRED
           registry-url: "https://registry.npmjs.org/"
-      - name: Enable Corepack (for Yarn v3)
-        run: corepack enable
-      - name: Prepare Yarn (install correct version via Corepack)
-        run: corepack prepare yarn@3.6.1 --activate
-      - name: Verify Yarn version
-        run: yarn --version
+      - run: npm install -g yarn
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
       - uses: actions/cache@v3
-        id: yarn-cache
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
         with:
-          path: |
-            .yarn/cache
-            .yarn/install-state.gz
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
           key: ${{ runner.os }}-yarn-${{ hashFiles('./yarn.lock', './package.json') }}
           restore-keys: |
             ${{ runner.os }}-yarn-kms-signer
       - name: "build"
         run: |
           yarn install --immutable
-          yarn plugin import version
           yarn build
 
       - name: "npm publish"
-        working-directory: ./
         shell: bash
         run: |
           git config --global user.email "${{ env.git_email }}"
           git config --global user.name "${{ env.git_username }}"
           USER_INPUT=${{ github.event.inputs.bumpversion }}          
           VERSION=${USER_INPUT:-"patch"}  
-          yarn version $VERSION --immediate
-          export NEW_VERSION=$(node -p "require('./package.json').version")
+          yarn version $VERSION
+          export MSG=`npm pkg get version --workspaces=false`
           git pull
           git add . 
-          git commit -m "chore: bump version to ${NEW_VERSION} [skip ci]"
-          git tag "v${NEW_VERSION}"
+          git commit -m "${MSG} kms-ethereum-signing"
           if [ "${{ env.push_version_commit }}" = "true" ]; then
             git push --follow-tags
           else
