@@ -2,6 +2,9 @@
 node_modules/
 dist/
 
+# Yarn PnP
+.pnp.*
+
 # Environment
 .env
 .env.local
@@ -24,3 +27,5 @@ npm-debug.log*
 
 # Build
 *.tsbuildinfo
+
+.yarn
