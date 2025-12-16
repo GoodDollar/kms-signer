@@ -38,7 +38,8 @@ jobs:
           node-version: "18"
           # setting a registry enables the NODE_AUTH_TOKEN env variable where we can set an npm token.  REQUIRED
           registry-url: "https://registry.npmjs.org/"
-      - run: npm install -g yarn
+      - name: Enable Corepack (for Yarn v3)
+        run: corepack enable
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
         run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
@@ -52,6 +53,7 @@ jobs:
       - name: "build"
         run: |
           yarn install --immutable
+          yarn plugin import version
           yarn build
 
       - name: "npm publish"
@@ -62,11 +64,12 @@ jobs:
           git config --global user.name "${{ env.git_username }}"
           USER_INPUT=${{ github.event.inputs.bumpversion }}          
           VERSION=${USER_INPUT:-"patch"}  
-          yarn version $VERSION
+          yarn version $VERSION --immediate
           export NEW_VERSION=$(node -p "require('./package.json').version")
           git pull
           git add . 
           git commit -m "chore: bump version to ${NEW_VERSION} [skip ci]"
+          git tag "v${NEW_VERSION}"
           if [ "${{ env.push_version_commit }}" = "true" ]; then
             git push --follow-tags
           else
