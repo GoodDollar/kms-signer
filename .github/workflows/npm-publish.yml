@@ -62,7 +62,7 @@ jobs:
           git config --global user.name "${{ env.git_username }}"
           USER_INPUT=${{ github.event.inputs.bumpversion }}          
           VERSION=${USER_INPUT:-"patch"}  
-          yarn version $VERSION
+          npm version $VERSION --no-commit
           export MSG=`npm pkg get version --workspaces=false`
           git pull
           git add . 
