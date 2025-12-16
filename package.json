@@ -2,6 +2,7 @@
   "name": "kms-ethereum-signing",
   "version": "1.0.0",
   "description": "Native Ethereum transaction signing using AWS KMS with secp256k1 support",
+  "packageManager": "yarn@3.6.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

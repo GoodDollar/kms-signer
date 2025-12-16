@@ -40,13 +40,16 @@ jobs:
           registry-url: "https://registry.npmjs.org/"
       - name: Enable Corepack (for Yarn v3)
         run: corepack enable
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
+      - name: Prepare Yarn (install correct version via Corepack)
+        run: corepack prepare yarn@3.6.1 --activate
+      - name: Verify Yarn version
+        run: yarn --version
       - uses: actions/cache@v3
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        id: yarn-cache
         with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          path: |
+            .yarn/cache
+            .yarn/install-state.gz
           key: ${{ runner.os }}-yarn-${{ hashFiles('./yarn.lock', './package.json') }}
           restore-keys: |
             ${{ runner.os }}-yarn-kms-signer
