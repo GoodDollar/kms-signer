@@ -94,23 +94,38 @@ export interface ImportKeyResult {
 
 /**
  * Creates a new KMS key with ECC_SECG_P256K1 for Ethereum signing
+ * 
+ * @param aliasName - Alias name for the key
+ * @param region - AWS region
+ * @param tags - Optional additional tags to add to the key (will be merged with default tags)
  */
 export async function createKMSKey(
   aliasName: string = 'ethereum-signing-key',
-  region?: string
+  region?: string,
+  tags?: Array<{ TagKey: string; TagValue: string }>
 ): Promise<CreateKeyResult> {
   const kmsClient = createKMSClient(region);
   
   try {
+    // Default tags
+    const defaultTags = [
+      { TagKey: 'Purpose', TagValue: 'EthereumSigning' },
+      { TagKey: 'Environment', TagValue: process.env.NODE_ENV || 'Development' },
+    ];
+    
+    // Merge default tags with custom tags (custom tags override defaults if same TagKey)
+    const tagMap = new Map<string, string>();
+    [...defaultTags, ...(tags || [])].forEach(tag => {
+      tagMap.set(tag.TagKey, tag.TagValue);
+    });
+    const mergedTags = Array.from(tagMap.entries()).map(([TagKey, TagValue]) => ({ TagKey, TagValue }));
+    
     // Create KMS key with secp256k1 (Ethereum's curve)
     const createKeyCommand = new CreateKeyCommand({
       Description: 'KMS key for Ethereum transaction signing (secp256k1)',
       KeyUsage: 'SIGN_VERIFY',
       KeySpec: 'ECC_SECG_P256K1', // secp256k1 - Ethereum's curve!
-      Tags: [
-        { TagKey: 'Purpose', TagValue: 'EthereumSigning' },
-        { TagKey: 'Environment', TagValue: process.env.NODE_ENV || 'Development' },
-      ],
+      Tags: mergedTags,
     });
 
     const createKeyResponse = await kmsClient.send(createKeyCommand);
@@ -209,16 +224,18 @@ export async function createKMSKey(
  * @param aliasName - Optional alias name for the key
  * @param region - AWS region
  * @param expirationDate - Optional expiration date (default: no expiration)
+ * @param tags - Optional additional tags to add to the key (will be merged with default tags)
  * @returns ImportKeyResult with keyId, keyArn, and aliasName
  */
 export async function importKMSKey(
   privateKeyHex: string,
   aliasName: string = 'ethereum-signing-key-imported',
   region?: string,
-  expirationDate?: Date
+  expirationDate?: Date,
+  tags?: Array<{ TagKey: string; TagValue: string }>
 ): Promise<ImportKeyResult> {
   const kmsClient = createKMSClient(region);
-  
+
   try {
     // Normalize private key (remove 0x prefix if present, ensure it's 64 hex chars = 32 bytes)
     let normalizedKey = privateKeyHex.startsWith('0x') 
@@ -241,17 +258,27 @@ export async function importKMSKey(
     // Convert raw private key to PKCS#8 DER format (required by AWS KMS for ECC keys)
     const pkcs8KeyMaterial = privateKeyToPKCS8(privateKeyBytes);
     
+    // Default tags
+    const defaultTags = [
+      { TagKey: 'Purpose', TagValue: 'EthereumSigning' },
+      { TagKey: 'KeySource', TagValue: 'Imported' },
+      { TagKey: 'Environment', TagValue: process.env.NODE_ENV || 'Development' },
+    ];
+    
+    // Merge default tags with custom tags (custom tags override defaults if same TagKey)
+    const tagMap = new Map<string, string>();
+    [...defaultTags, ...(tags || [])].forEach(tag => {
+      tagMap.set(tag.TagKey, tag.TagValue);
+    });
+    const mergedTags = Array.from(tagMap.entries()).map(([TagKey, TagValue]) => ({ TagKey, TagValue }));
+    
     // Step 1: Create KMS key with EXTERNAL origin for imported key material
     const createKeyCommand = new CreateKeyCommand({
       Description: 'KMS key for Ethereum transaction signing with imported key material (secp256k1)',
       KeyUsage: 'SIGN_VERIFY',
       KeySpec: 'ECC_SECG_P256K1', // secp256k1 - Ethereum's curve
       Origin: 'EXTERNAL', // Required for imported key material
-      Tags: [
-        { TagKey: 'Purpose', TagValue: 'EthereumSigning' },
-        { TagKey: 'KeySource', TagValue: 'Imported' },
-        { TagKey: 'Environment', TagValue: process.env.NODE_ENV || 'Development' },
-      ],
+      Tags: mergedTags,
     });
 
     const createKeyResponse = await kmsClient.send(createKeyCommand);

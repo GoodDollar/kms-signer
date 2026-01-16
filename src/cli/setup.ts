@@ -10,12 +10,32 @@ async function main() {
   const aliasName = process.argv[2] || 'ethereum-signing-key';
   const region = process.env.AWS_REGION || 'us-east-1';
   
+  // Parse tags from command-line arguments (format: KEY=VALUE)
+  const tags: Array<{ TagKey: string; TagValue: string }> = [];
+   
+  // Parse tags from command-line arguments (format: KEY=VALUE)
+  for (let i = 3; i < process.argv.length; i++) {
+    const arg = process.argv[i];
+    const match = arg.match(/^([^=]+)=(.*)$/);
+    if (match) {
+      tags.push({ TagKey: match[1], TagValue: match[2] });
+    }
+  }
+  
   console.log('=== AWS KMS Setup for Ethereum Signing ===\n');
   console.log(`Region: ${region}`);
-  console.log(`Alias: ${aliasName}\n`);
+  console.log(`Alias: ${aliasName}`);
+  if (tags.length > 0) {
+    console.log(`Tags: ${tags.map(t => `${t.TagKey}=${t.TagValue}`).join(', ')}`);
+  }
+  console.log('');
 
   try {
-    const result = await createKMSKey(aliasName, region);
+    const result = await createKMSKey(
+      aliasName, 
+      region,
+      tags.length > 0 ? tags : undefined
+    );
     
     console.log('✓ KMS key created:', result.keyId);
     console.log('  ARN:', result.keyArn);

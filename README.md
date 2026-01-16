@@ -69,7 +69,7 @@ const signedTx = await signTransaction(keyId, {
 npm run setup [alias-name]
 
 # Import existing Ethereum private key into KMS
-npm run import <PRIVATE_KEY_HEX> [ALIAS_NAME]
+npm run import <PRIVATE_KEY_HEX> [ALIAS_NAME] [TAG_KEY1=TAG_VALUE1] [TAG_KEY2=TAG_VALUE2] ...
 
 # Sign native ETH transfer
 npm run sign -- <KEY_ID> transfer <TO_ADDRESS> [VALUE] [CHAIN_ID] [OPTIONS]
