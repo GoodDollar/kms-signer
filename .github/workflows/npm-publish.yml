@@ -25,7 +25,7 @@ jobs:
       git_username: techadmin
       push_version_commit: true # if your prePublishOnly step pushes git commits, you can omit this input or set it to false.
       GH_RELEASE_GITHUB_API_TOKEN: ${{ secrets.DEPLOY_GITHUB_TOKEN }} # built in actions token.  Passed tp gh-release if in use.
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_DEPLOY_TOKEN }} # user set secret token generated at npm
+      # NODE_AUTH_TOKEN not needed - using npm permissioned CI with automatic authentication
       publish_cmd: npm publish --access public
     steps:
       - uses: actions/checkout@v3
@@ -33,11 +33,12 @@ jobs:
           # fetch full history so things like auto-changelog work properly
           fetch-depth: 0
       - name: Use Node 18
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: "18"
-          # setting a registry enables the NODE_AUTH_TOKEN env variable where we can set an npm token.  REQUIRED
           registry-url: "https://registry.npmjs.org/"
+          # npm permissioned CI: automatically authenticates using GITHUB_TOKEN
+          # when package scope matches GitHub organization (@gooddollar)
       - name: Enable Corepack
         run: corepack enable
       - name: Get yarn cache directory path
