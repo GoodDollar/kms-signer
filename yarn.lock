@@ -788,6 +788,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@gooddollar/kms-ethereum-signing@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "@gooddollar/kms-ethereum-signing@workspace:."
+  dependencies:
+    "@aws-sdk/client-kms": ^3.490.0
+    "@ethereumjs/common": ^3.1.0
+    "@ethereumjs/tx": ^4.1.1
+    "@types/node": ^20.10.0
+    dotenv: ^16.3.1
+    ts-node: ^10.9.2
+    typescript: ^5.3.3
+    web3: ^1.10.0
+  languageName: unknown
+  linkType: soft
+
 "@isaacs/balanced-match@npm:^4.0.1":
   version: 4.0.1
   resolution: "@isaacs/balanced-match@npm:4.0.1"
@@ -3319,21 +3334,6 @@ __metadata:
   checksum: 74a24395b1c34bd44ad5cb2b49140d087553e170625240b86755a6604cd65aa16efdbdeae5cdb17ba1284a0fbb25ad06263755dbc71b8d8b06f74232ce3cdd72
   languageName: node
   linkType: hard
-
-"kms-ethereum-signing@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "kms-ethereum-signing@workspace:."
-  dependencies:
-    "@aws-sdk/client-kms": ^3.490.0
-    "@ethereumjs/common": ^3.1.0
-    "@ethereumjs/tx": ^4.1.1
-    "@types/node": ^20.10.0
-    dotenv: ^16.3.1
-    ts-node: ^10.9.2
-    typescript: ^5.3.3
-    web3: ^1.10.0
-  languageName: unknown
-  linkType: soft
 
 "lowercase-keys@npm:^2.0.0":
   version: 2.0.0
