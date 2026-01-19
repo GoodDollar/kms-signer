@@ -28,7 +28,7 @@ jobs:
       # NODE_AUTH_TOKEN not needed - using npm permissioned CI with automatic authentication
       publish_cmd: npm publish --access public
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # fetch full history so things like auto-changelog work properly
           fetch-depth: 0
