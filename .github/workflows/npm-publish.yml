@@ -1,4 +1,4 @@
-name: Publish to npm
+name: KMS Signer publish
 
 on:
   push:
@@ -7,114 +7,51 @@ on:
       - "package.json"
       - "tsconfig.json"
       - ".github/workflows/npm-publish.yml"
-    branches:
-      - master
-      - main
 
   workflow_dispatch:
-    inputs:
-      bumpversion:
-        description: "Semantic Version Bump Type (major minor patch)"
-        required: true
-        default: "patch"
-        type: choice
-        options:
-          - major
-          - minor
-          - patch
 
 jobs:
-  publish:
+  deploy:
     runs-on: ubuntu-latest
-    name: "Version bump and publish to npm"
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
-    
-    permissions:
-      contents: write
-      id-token: write  # Required for npm permissioned CI
-    
-    env:
-      git_email: techadmin@gooddollar.org
-      git_username: techadmin
-      push_version_commit: true
-    
+    name: "publish to npm"
+    if: github.ref == 'refs/heads/master'
+    # NODE_AUTH_TOKEN not needed - using npm permissioned CI with automatic authentication
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
+          # fetch full history so things like auto-changelog work properly
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Setup Node.js
+      - name: Use Node 18
         uses: actions/setup-node@v4
         with:
           node-version: "18"
           registry-url: "https://registry.npmjs.org/"
           # npm permissioned CI: automatically authenticates using GITHUB_TOKEN
-          # when package scope (@gooddollar) matches GitHub organization
-          # No NODE_AUTH_TOKEN needed!
-      
+          # when package scope matches GitHub organization (@gooddollar)
       - name: Enable Corepack
         run: corepack enable
-      
       - name: Get yarn cache directory path
         id: yarn-cache-dir-path
-        run: echo "dir=$(yarn config get cacheFolder)" >> $GITHUB_OUTPUT
-      
-      - name: Cache yarn dependencies
-        uses: actions/cache@v4
+        run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
+      - uses: actions/cache@v3
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
         with:
           path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
           key: ${{ runner.os }}-yarn-${{ hashFiles('./yarn.lock', './package.json') }}
           restore-keys: |
             ${{ runner.os }}-yarn-kms-signer
-      
-      - name: Install dependencies
-        run: yarn install --immutable
-      
-      - name: Build package
-        run: yarn build
-      
-      - name: Configure git
+      - name: "build"
         run: |
-          git config --global user.email "${{ env.git_email }}"
-          git config --global user.name "${{ env.git_username }}"
-      
-      - name: Bump version and publish
+          yarn install --immutable
+          yarn build
+
+      - name: "npm publish"
         run: |
-          git pull --rebase
-          
-          # Determine version bump type
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.bumpversion }}"
-          else
-            VERSION="patch"
-          fi
-          
-          # Bump version (creates tag but doesn't commit)
-          npm version $VERSION --no-commit
-          
-          # Get the new version
-          NEW_VERSION=$(npm pkg get version --workspaces=false | tr -d '"')
-          
-          # Commit version bump
-          git add package.json package-lock.json 2>/dev/null || true
-          git add package.json yarn.lock 2>/dev/null || true
-          
-          if [ -n "$(git status --porcelain)" ]; then
-            git commit -m "chore: bump version to ${NEW_VERSION}"
-            
-            if [ "${{ env.push_version_commit }}" = "true" ]; then
-              git push --follow-tags
-            else
-              echo "Skipping git push (push_version_commit is false)"
-            fi
-          else
-            echo "No version changes to commit"
-          fi
+          # Get current version from package.json
+          VERSION=$(npm pkg get version --workspaces=false | tr -d '"')
+          echo "Publishing version: ${VERSION}"
           
           # Publish to npm (uses automatic authentication via npm permissioned CI)
           npm publish --access public
           
-          echo "✅ Successfully published @gooddollar/kms-ethereum-signing@${NEW_VERSION} to npm"
-
+          echo "✅ Successfully published @gooddollar/kms-ethereum-signing@${VERSION} to npm"
