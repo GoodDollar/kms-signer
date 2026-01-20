@@ -12,14 +12,14 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Enable Corepack
+        run: corepack enable
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: 'yarn'
-          registry-url: 'https://registry.npmjs.org'
-      - name: Enable Corepack
-        run: corepack enable
+          registry-url: 'https://registry.npmjs.org'      
       - run: |
           yarn install --immutable
           yarn build
