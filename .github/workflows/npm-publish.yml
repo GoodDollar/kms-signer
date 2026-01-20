@@ -18,8 +18,10 @@ jobs:
           node-version: '24'
           cache: 'yarn'
           registry-url: 'https://registry.npmjs.org'
-
-      - run: yarn install
-      
+      - name: Enable Corepack
+        run: corepack enable
+      - run: yarn install --immutable
       - run: npm publish --provenance --access public
   
+
+      
