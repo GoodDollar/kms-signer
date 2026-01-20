@@ -1,56 +1,25 @@
-name: KMS Signer publish
+name: Publish Package
 
 on:
-  push:
-    paths:
-      - "src/**"
-      - "package.json"
-      - "tsconfig.json"
-      - ".github/workflows/npm-publish.yml"
+  release:
+    types: [published]
 
-  workflow_dispatch:
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
-  deploy:
+  publish:
     runs-on: ubuntu-latest
-    name: "publish to npm"
-    if: github.ref == 'refs/heads/master'
-    # NODE_AUTH_TOKEN not needed - using npm permissioned CI with automatic authentication
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          # fetch full history so things like auto-changelog work properly
-          fetch-depth: 0
-      - name: Use Node 18
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          # npm permissioned CI: automatically authenticates using GITHUB_TOKEN
-          # when package scope matches GitHub organization (@gooddollar)
-      - name: Enable Corepack
-        run: corepack enable
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
-      - uses: actions/cache@v3
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('./yarn.lock', './package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-kms-signer
-      - name: "build"
-        run: |
-          yarn install --immutable
-          yarn build
+          node-version: '24'
+          cache: 'yarn'
+          registry-url: 'https://registry.npmjs.org'
 
-      - name: "npm publish"
-        run: |
-          # Get current version from package.json
-          VERSION=$(npm pkg get version --workspaces=false | tr -d '"')
-          echo "Publishing version: ${VERSION}"
-          
-          # Publish to npm (uses automatic authentication via npm permissioned CI)
-          npm publish --access public
-          
-          echo "✅ Successfully published @gooddollar/kms-ethereum-signing@${VERSION} to npm"
+      - run: yarn install
+      
+      - run: npm publish --provenance --access public
+  
