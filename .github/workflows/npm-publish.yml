@@ -25,7 +25,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
-          registry-url: "https://registry.npmjs.org/"
           # npm permissioned CI: automatically authenticates using GITHUB_TOKEN
           # when package scope matches GitHub organization (@gooddollar)
       - name: Enable Corepack
