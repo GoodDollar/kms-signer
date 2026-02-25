@@ -411,9 +411,9 @@ export async function signTransaction(
           maxFeePerGas: Web3.utils.toHex(tx.maxFeePerGas),
           maxPriorityFeePerGas: Web3.utils.toHex(tx.maxPriorityFeePerGas),
           chainId: chainId,
+          v: BigInt(yParity),
           r: rBuffer,
           s: sBuffer,
-          yParity: yParity as 0 | 1,
         };
         
         const signedTx = FeeMarketEIP1559Transaction.fromTxData(txData, { common });
