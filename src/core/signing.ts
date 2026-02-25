@@ -398,6 +398,7 @@ export async function signTransaction(
   let lastError: Error | null = null;
   
   if (useEIP1559 && tx.maxFeePerGas && tx.maxPriorityFeePerGas) {
+    console.log('Finding correct recovery ID for EIP-1559 transaction');
     // EIP-1559: try yParity 0 and 1, verify address matches
     for (let yParity = 0; yParity < 2; yParity++) {
       try {
@@ -423,11 +424,13 @@ export async function signTransaction(
           return '0x' + signedTx.serialize().toString('hex');
         }
       } catch (error: any) {
+        console.log('EIP-1559 warning: ', error);
         lastError = error;
         continue;
       }
     }
   } else {
+    console.log('Finding correct recovery ID for legacy transaction');
     // Legacy: try all recovery IDs (0, 1, 2, 3), verify address matches
     for (let recoveryId = 0; recoveryId < 4; recoveryId++) {
       try {
@@ -453,6 +456,7 @@ export async function signTransaction(
           return '0x' + signedTx.serialize().toString('hex');
         }
       } catch (error: any) {
+        console.log('non EIP-1559 warning: ', error)
         lastError = error;
         continue;
       }
