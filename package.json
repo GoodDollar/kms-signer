@@ -35,11 +35,11 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@aws-sdk/client-kms": "^3.490.0",
+    "@aws-sdk/client-kms": "^3.974.0",
     "@ethereumjs/common": "^3.1.0",
     "@ethereumjs/tx": "^4.1.1",
     "dotenv": "^16.3.1",
-    "web3": "^1.10.0"
+    "web3": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
