@@ -6,11 +6,29 @@
  */
 
 import { SignCommand, GetPublicKeyCommand } from '@aws-sdk/client-kms';
-import Web3 from 'web3';
-import { Transaction, FeeMarketEIP1559Transaction } from '@ethereumjs/tx';
-import { Common } from '@ethereumjs/common';
+import {
+  getAddress,
+  keccak256,
+  parseEther,
+  recoverAddress,
+  serializeTransaction,
+  toBytes,
+  toHex,
+  type Hex,
+  type TransactionSerializable,
+} from 'viem';
 import { createKMSClient } from './kms-client';
+import { createRpcClient } from './rpc';
 import { CHAIN_RPC_URLS } from './constants';
+
+const DEFAULT_GAS_PRICE = '1000000000'; // 1 gwei
+
+/**
+ * Converts a decimal or 0x-prefixed numeric string (or number) to a 0x-prefixed hex quantity
+ */
+function toQuantity(value: string | number | bigint): Hex {
+  return toHex(BigInt(value));
+}
 
 function getDefaultRpcUrl(chainId?: number): string | undefined {
   return chainId ? CHAIN_RPC_URLS[chainId] : undefined;
@@ -34,9 +52,9 @@ async function fetchNonceIfNeeded(
     try {
       const rpcUrl = transaction.rpcUrl || getDefaultRpcUrl(transaction.chainId);
       if (rpcUrl) {
-        const web3 = new Web3(rpcUrl);
+        const client = createRpcClient(rpcUrl);
         const senderAddress = await getEthereumAddress(keyId, region);
-        tx.nonce = await web3.eth.getTransactionCount(senderAddress, 'pending');
+        tx.nonce = await client.getTransactionCount({ address: senderAddress as Hex, blockTag: 'pending' });
         return;
       }
     } catch (error: any) {
@@ -138,10 +156,10 @@ export async function getEthereumAddress(keyId: string, region?: string): Promis
   const publicKeyBytes = publicKeyHex.slice(4); // Remove '0x04'
   
   // Hash the public key (64 bytes) with Keccak256
-  const hash = Web3.utils.keccak256('0x' + publicKeyBytes);
+  const hash = keccak256(('0x' + publicKeyBytes) as Hex);
   
   // Take the last 20 bytes (40 hex characters) as the address
-  const address = Web3.utils.toChecksumAddress('0x' + hash.slice(-40));
+  const address = getAddress('0x' + hash.slice(-40));
   
   return address;
 }
@@ -177,7 +195,7 @@ export async function signTransaction(
   };
   
   if (transaction.value) {
-    tx.value = Web3.utils.toWei(transaction.value, 'ether');
+    tx.value = parseEther(transaction.value).toString();
   }
   if (transaction.data) {
     // Ensure data is a hex string with 0x prefix
@@ -194,13 +212,13 @@ export async function signTransaction(
     try {
       const rpcUrl = transaction.rpcUrl || getDefaultRpcUrl(transaction.chainId);
       if (rpcUrl) {
-        const web3 = new Web3(rpcUrl);
-        const estimatedGas = await web3.eth.estimateGas({
-          to: transaction.to,
-          value: transaction.value ? Web3.utils.toWei(transaction.value, 'ether') : undefined,
-          data: transaction.data,
+        const client = createRpcClient(rpcUrl);
+        const estimatedGas = await client.estimateGas({
+          to: transaction.to as Hex,
+          value: transaction.value ? parseEther(transaction.value) : undefined,
+          data: tx.data,
         });
-        tx.gasLimit = (estimatedGas * 2).toFixed(0).toString();
+        tx.gasLimit = (estimatedGas * 2n).toString();
       } else {
         tx.gasLimit = '21000'; // Default gas limit for simple transfer
       }
@@ -230,79 +248,54 @@ export async function signTransaction(
       try {
         const rpcUrl = transaction.rpcUrl || getDefaultRpcUrl(transaction.chainId);
         if (rpcUrl) {
-          const web3 = new Web3(rpcUrl);
-          const gasPrice = await web3.eth.getGasPrice();
-          tx.gasPrice = gasPrice;
+          const client = createRpcClient(rpcUrl);
+          const gasPrice = await client.getGasPrice();
+          tx.gasPrice = gasPrice.toString();
         } else {
-          tx.gasPrice = Web3.utils.toWei('1', 'gwei'); // Default 1 gwei
+          tx.gasPrice = DEFAULT_GAS_PRICE;
         }
       } catch (error: any) {
         console.warn(`Warning: Could not fetch gas data from network: ${error.message}`);
-        tx.gasPrice = Web3.utils.toWei('1', 'gwei'); // Default 1 gwei
+        tx.gasPrice = DEFAULT_GAS_PRICE;
       }
     } else {
-      tx.gasPrice = Web3.utils.toWei('1', 'gwei'); // Default 1 gwei
+      tx.gasPrice = DEFAULT_GAS_PRICE;
     }
   }
   
-  // Get chain configuration
   const chainId = tx.chainId;
-  // Create Common instance with proper chain configuration
-  // For custom chains, we need to provide chain params
-  const common = Common.custom(
-    {
-      chainId: chainId,
-      networkId: chainId, // Use chainId as networkId for custom chains
-    },
-    {
-      hardfork: 'merge', // Use latest hardfork
-    }
-  );
-  
-  // Prepare common transaction fields (ensure consistent format)
-  const toAddress = tx.to ? (tx.to.startsWith('0x') ? tx.to : '0x' + tx.to) : undefined;
-  const txDataValue = tx.value ? Web3.utils.toHex(tx.value) : '0x0';
-  const txDataNonce = tx.nonce !== undefined ? Web3.utils.toHex(tx.nonce) : '0x0';
-  const txDataGasLimit = tx.gasLimit ? Web3.utils.toHex(tx.gasLimit) : '0x5208';
-  const txDataData = tx.data ? Buffer.from(tx.data.slice(2), 'hex') : Buffer.alloc(0);
-  
-  // Build transaction object for @ethereumjs/tx
-  let unsignedTx: Transaction | FeeMarketEIP1559Transaction;
-  
-  if (useEIP1559 && tx.maxFeePerGas && tx.maxPriorityFeePerGas) {
-    // EIP-1559 transaction
-    const txData = {
-      nonce: txDataNonce,
-      gasLimit: txDataGasLimit,
-      to: toAddress,
-      value: txDataValue,
-      data: txDataData,
-      maxFeePerGas: Web3.utils.toHex(tx.maxFeePerGas),
-      maxPriorityFeePerGas: Web3.utils.toHex(tx.maxPriorityFeePerGas),
-      chainId: chainId,
-    };
-    
-    unsignedTx = FeeMarketEIP1559Transaction.fromTxData(txData, { common });
-  } else {
-    // Legacy transaction
-    const txData = {
-      nonce: txDataNonce,
-      gasPrice: tx.gasPrice ? Web3.utils.toHex(tx.gasPrice) : '0x0',
-      gasLimit: txDataGasLimit,
-      to: toAddress,
-      value: txDataValue,
-      data: txDataData,
-      chainId: chainId,
-    };
-    
-    unsignedTx = Transaction.fromTxData(txData, { common });
+  if (chainId === undefined || chainId === null) {
+    throw new Error('chainId is required to sign a transaction');
   }
-  
-  // Get the message hash to sign (this is the correct hash for the transaction)
-  // getMessageToSign(true) or getMessageToSign() returns the hash (32 bytes) that should be signed
-  // getMessageToSign(false) returns the serialized transaction (variable length)
-  const messageHash = unsignedTx.getMessageToSign(true);
-  
+
+  // Prepare common transaction fields (ensure consistent format)
+  const toAddress = tx.to ? ((tx.to.startsWith('0x') ? tx.to : '0x' + tx.to) as Hex) : undefined;
+  const commonFields = {
+    chainId: Number(chainId),
+    nonce: Number(tx.nonce !== undefined ? tx.nonce : 0),
+    gas: BigInt(tx.gasLimit || '0x5208'),
+    to: toAddress,
+    value: BigInt(tx.value || 0),
+    data: (tx.data || '0x') as Hex,
+  };
+
+  // EIP-1559 (type 2) or legacy (EIP-155) transaction
+  const unsignedTx: TransactionSerializable = useEIP1559
+    ? {
+        type: 'eip1559',
+        ...commonFields,
+        maxFeePerGas: BigInt(tx.maxFeePerGas),
+        maxPriorityFeePerGas: BigInt(tx.maxPriorityFeePerGas),
+      }
+    : {
+        type: 'legacy',
+        ...commonFields,
+        gasPrice: BigInt(tx.gasPrice || 0),
+      };
+
+  // The hash to sign is the keccak256 of the unsigned serialized transaction (32 bytes, as required by KMS ECDSA_SHA_256 digests)
+  const messageHash = toBytes(keccak256(serializeTransaction(unsignedTx)));
+
   // Ensure we have exactly 32 bytes for KMS (ECDSA_SHA_256 requires 32-byte digest)
   if (messageHash.length !== 32) {
     throw new Error(`Invalid message hash length: expected 32 bytes, got ${messageHash.length}`);
@@ -379,7 +372,7 @@ export async function signTransaction(
   const sBigInt = BigInt('0x' + sPadded.toString('hex'));
   
   // Ensure s is in canonical form (s <= n/2)
-  // @ethereumjs/tx requires canonical s, so we must flip it if needed
+  // Ethereum requires canonical (low) s values, so we must flip it if needed
   const sCanonical = sBigInt > SECP256K1_N / 2n
     ? Buffer.from((SECP256K1_N - sBigInt).toString(16).padStart(64, '0'), 'hex')
     : sPadded;
@@ -392,77 +385,33 @@ export async function signTransaction(
   const expectedAddress = await getEthereumAddress(keyId, region);
   const expectedAddressLower = expectedAddress.toLowerCase();
   
-  // Find the correct recovery ID/yParity by verifying the recovered address
-  // For EIP-1559: yParity can only be 0 or 1
-  // For legacy: v = chainId * 2 + 35 + recoveryId, where recoveryId can be 0, 1, 2, or 3
+  // Find the correct yParity by checking which one recovers the KMS key's address
+  const rHex = ('0x' + rBuffer.toString('hex')) as Hex;
+  const sHex = ('0x' + sBuffer.toString('hex')) as Hex;
   let lastError: Error | null = null;
-  
-  if (useEIP1559 && tx.maxFeePerGas && tx.maxPriorityFeePerGas) {
-    console.log('Finding correct recovery ID for EIP-1559 transaction');
-    // EIP-1559: try yParity 0 and 1, verify address matches
-    for (let yParity = 0; yParity < 2; yParity++) {
-      try {
-        const txData = {
-          nonce: txDataNonce,
-          gasLimit: txDataGasLimit,
-          to: toAddress,
-          value: txDataValue,
-          data: txDataData,
-          maxFeePerGas: Web3.utils.toHex(tx.maxFeePerGas),
-          maxPriorityFeePerGas: Web3.utils.toHex(tx.maxPriorityFeePerGas),
-          chainId: chainId,
-          v: BigInt(yParity),
-          r: rBuffer,
-          s: sBuffer,
-        };
-        
-        const signedTx = FeeMarketEIP1559Transaction.fromTxData(txData, { common });
-        const recoveredAddress = signedTx.getSenderAddress().toString().toLowerCase();
-        
-        // Verify the recovered address matches the expected address
-        if (recoveredAddress === expectedAddressLower) {
-          return '0x' + signedTx.serialize().toString('hex');
-        }
-      } catch (error: any) {
-        console.log('EIP-1559 warning: ', error);
-        lastError = error;
-        continue;
+
+  for (const yParity of [0, 1]) {
+    try {
+      const recoveredAddress = await recoverAddress({
+        hash: toHex(messageHash),
+        signature: { r: rHex, s: sHex, yParity },
+      });
+
+      if (recoveredAddress.toLowerCase() === expectedAddressLower) {
+        // legacy transactions carry the EIP-155 `v` (chainId * 2 + 35 + yParity); typed transactions carry yParity
+        return serializeTransaction(
+          unsignedTx,
+          useEIP1559
+            ? { r: rHex, s: sHex, yParity }
+            : { r: rHex, s: sHex, v: BigInt(Number(chainId) * 2 + 35 + yParity) }
+        );
       }
-    }
-  } else {
-    console.log('Finding correct recovery ID for legacy transaction');
-    // Legacy: try all recovery IDs (0, 1, 2, 3), verify address matches
-    for (let recoveryId = 0; recoveryId < 4; recoveryId++) {
-      try {
-        // Calculate v value: v = chainId * 2 + 35 + recoveryId (EIP-155)
-        const v = chainId * 2 + 35 + recoveryId;
-        const txData: any = {
-          nonce: txDataNonce,
-          gasPrice: tx.gasPrice ? Web3.utils.toHex(tx.gasPrice) : '0x0',
-          gasLimit: txDataGasLimit,
-          to: toAddress,
-          value: txDataValue,
-          data: txDataData,
-          r: rBuffer,
-          s: sBuffer,
-          v: Web3.utils.toHex(v),
-        };
-        
-        const signedTx = Transaction.fromTxData(txData, { common });
-        const recoveredAddress = signedTx.getSenderAddress().toString().toLowerCase();
-        
-        // Verify the recovered address matches the expected address
-        if (recoveredAddress === expectedAddressLower) {
-          return '0x' + signedTx.serialize().toString('hex');
-        }
-      } catch (error: any) {
-        console.log('non EIP-1559 warning: ', error)
-        lastError = error;
-        continue;
-      }
+    } catch (error: any) {
+      console.log('signature recovery warning: ', error);
+      lastError = error;
     }
   }
-  
+
   // If we get here, none of the recovery IDs produced a matching address
   const errorMsg = lastError 
     ? `Could not construct signed transaction with matching address: ${lastError.message}` 
@@ -485,8 +434,7 @@ export async function signMessage(
   const messageBuffer = Buffer.from(message, 'utf8');
   const prefix = Buffer.from('\x19Ethereum Signed Message:\n' + messageBuffer.length.toString(), 'utf8');
   const messageToHash = Buffer.concat([prefix, messageBuffer]);
-  const messageHash = Web3.utils.keccak256('0x' + messageToHash.toString('hex'));
-  const messageBytes = Buffer.from(messageHash.slice(2), 'hex');
+  const messageBytes = Buffer.from(keccak256(toHex(messageToHash)).slice(2), 'hex');
   
   // Sign with KMS
   const signCommand = new SignCommand({

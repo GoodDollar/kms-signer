@@ -7,8 +7,7 @@
 
 import { signTransaction, signMessage, getEthereumAddress, getPublicKey } from '../core/signing';
 import { submitTransaction } from '../core/submit';
-import Web3 from 'web3';
-import { AbiItem } from 'web3-utils';
+import { encodeFunctionData, type Abi } from 'viem';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -33,8 +32,6 @@ interface TransactionOptions {
  * Encodes a function call with its parameters
  */
 function encodeFunctionCall(functionSignature: string, parameters: any[]): string {
-  const web3 = new Web3();
-  
   // Parse function signature (e.g., "transfer(address,uint256)")
   const functionName = functionSignature.split('(')[0];
   const paramsString = functionSignature.substring(
@@ -51,23 +48,45 @@ function encodeFunctionCall(functionSignature: string, parameters: any[]): strin
     const errorMsg = `Parameter count mismatch: function "${functionName}" expects ${paramTypes.length} parameter(s), but ${parameters.length} were provided.\n` +
       `  Function signature: ${functionSignature}\n` +
       `  Provided parameters: ${JSON.stringify(parameters)}\n` +
-      `\nTip: If you're using options like --value or --chain-id, make sure to use "--" before them:\n` +
-      `  npm run sign -- <KEY_ID> call <CONTRACT> "<FUNCTION>" [PARAMS...] --value 0.1 --chain-id 1`;
+      `\nTip: pass options like --value or --chain-id after the function parameters:\n` +
+      `  pnpm run sign <KEY_ID> call <CONTRACT> "<FUNCTION>" [PARAMS...] --value 0.1 --chain-id 1`;
     throw new Error(errorMsg);
   }
   
   // Create function ABI
-  const functionAbi: AbiItem = {
-    name: functionName,
-    type: 'function',
-    inputs: paramTypes.map((type, index) => ({
-      name: `param${index}`,
-      type: type,
-    })),
-  } as AbiItem;
+  const functionAbi = [
+    {
+      name: functionName,
+      type: 'function',
+      stateMutability: 'nonpayable',
+      inputs: paramTypes.map((type, index) => ({
+        name: `param${index}`,
+        type: type,
+      })),
+      outputs: [],
+    },
+  ] as const satisfies Abi;
   
-  // Encode function call
-  return web3.eth.abi.encodeFunctionCall(functionAbi, parameters);
+  // Encode function call (CLI parameters are strings, so coerce them to the ABI types first)
+  return encodeFunctionData({
+    abi: functionAbi,
+    functionName,
+    args: parameters.map((param, index) => coerceAbiParam(paramTypes[index], param)),
+  } as any);
+}
+
+/**
+ * Converts a CLI string parameter to the JS value viem expects for an ABI type
+ */
+function coerceAbiParam(type: string, value: any): any {
+  const arrayMatch = type.match(/^(.*)\[\d*\]$/);
+  if (arrayMatch) {
+    const items = typeof value === 'string' ? JSON.parse(value) : value;
+    return items.map((item: any) => coerceAbiParam(arrayMatch[1], item));
+  }
+  if (/^u?int\d*$/.test(type)) return BigInt(value);
+  if (type === 'bool') return value === true || value === 'true' || value === '1';
+  return value;
 }
 
 /**
@@ -331,7 +350,7 @@ function parseArguments(): { command: string; options: TransactionOptions; autoD
 
 function printUsage(): void {
   console.error('\nUsage:');
-  console.error('  npm run sign -- <KEY_ID> <COMMAND> [ARGS...] [OPTIONS]');
+  console.error('  pnpm run sign <KEY_ID> <COMMAND> [ARGS...] [OPTIONS]');
   console.error('  # Note: Use -- to separate npm arguments from script arguments');
   console.error('\nCommands:');
   console.error('  transfer <TO> [VALUE] [CHAIN_ID]     Sign a native ETH transfer');
@@ -341,26 +360,26 @@ function printUsage(): void {
   console.error('  publickey                            Get public key from KMS key');
   console.error('\nExamples:');
   console.error('  # Native ETH transfer');
-  console.error('  npm run sign -- alias/my-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1');
-  console.error('  npm run sign -- alias/my-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 --submit --wait');
+  console.error('  pnpm run sign alias/my-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1');
+  console.error('  pnpm run sign alias/my-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 --submit --wait');
   console.error('');
   console.error('  # Contract call (ERC20 transfer)');
-  console.error('  npm run sign -- alias/my-key call 0xToken... "transfer(address,uint256)" 0xRecipient... 1000000000000000000');
+  console.error('  pnpm run sign alias/my-key call 0xToken... "transfer(address,uint256)" 0xRecipient... 1000000000000000000');
   console.error('');
   console.error('  # Contract call with value');
-  console.error('  npm run sign -- alias/my-key call 0xContract... "deposit()" --value 0.1 --chain-id 1');
+  console.error('  pnpm run sign alias/my-key call 0xContract... "deposit()" --value 0.1 --chain-id 1');
   console.error('');
   console.error('  # Sign and submit contract call');
-  console.error('  npm run sign -- alias/my-key call 0xContract... "approve(address,uint256)" 0xSpender... 1000 --submit --wait');
+  console.error('  pnpm run sign alias/my-key call 0xContract... "approve(address,uint256)" 0xSpender... 1000 --submit --wait');
   console.error('');
   console.error('  # Sign message');
-  console.error('  npm run sign -- alias/my-key message "Hello, Ethereum!"');
+  console.error('  pnpm run sign alias/my-key message "Hello, Ethereum!"');
   console.error('');
   console.error('  # Get address');
-  console.error('  npm run sign -- alias/my-key address');
+  console.error('  pnpm run sign alias/my-key address');
   console.error('');
   console.error('  # Legacy format (backward compatible)');
-  console.error('  npm run sign -- alias/my-key 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1');
+  console.error('  pnpm run sign alias/my-key 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1');
   console.error('');
   console.error('Options:');
   console.error('  --chain-id, -c <ID>          Chain ID (default: 84532 or from env)');
@@ -390,8 +409,8 @@ async function main() {
   
   if (autoDetected) {
     console.log('⚠️  Warning: Detected option values that were passed without flags.');
-    console.log('   This happens when you forget to use "--" before options.');
-    console.log('   Tip: Use "npm run sign -- ..." to avoid this warning.\n');
+    console.log('   This happens when option flags are missing or misplaced.');
+    console.log('   Tip: Run "pnpm run sign <KEY_ID> ... [--option value]".\n');
   }
   
   try {

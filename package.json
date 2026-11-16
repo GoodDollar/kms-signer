@@ -2,7 +2,7 @@
   "name": "@gooddollar/kms-ethereum-signing",
   "version": "1.0.4",
   "description": "Native Ethereum transaction signing using AWS KMS with secp256k1 support",
-  "packageManager": "yarn@3.6.1",
+  "packageManager": "pnpm@12.18.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -35,15 +35,16 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@aws-sdk/client-kms": "^3.490.0",
-    "@ethereumjs/common": "^3.1.0",
-    "@ethereumjs/tx": "^4.1.1",
-    "dotenv": "^16.3.1",
-    "web3": "^1.10.0"
+    "@aws-sdk/client-kms": "^3.1168.0",
+    "dotenv": "^16.6.1",
+    "viem": "^2.57.19"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
+    "@types/node": "^22.20.5",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

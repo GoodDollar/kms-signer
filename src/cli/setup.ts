@@ -51,7 +51,7 @@ async function main() {
     console.log('1. Update your .env file with:');
     console.log(`   KMS_KEY_ID=${result.keyId}`);
     console.log(`   KMS_KEY_ARN=${result.keyArn}`);
-    console.log('2. Run: npm run sign');
+    console.log('2. Run: pnpm run sign');
   } catch (error: any) {
     console.error('\nSetup failed:', error.message);
     process.exit(1);

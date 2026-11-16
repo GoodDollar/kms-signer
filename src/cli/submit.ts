@@ -18,11 +18,11 @@ async function main() {
   if (!signedTx) {
     console.error('Error: Signed transaction is required');
     console.error('\nUsage:');
-    console.error('  npm run submit <SIGNED_TX> [RPC_URL] [CHAIN_ID] [--wait]');
+    console.error('  pnpm run submit <SIGNED_TX> [RPC_URL] [CHAIN_ID] [--wait]');
     console.error('\nExamples:');
-    console.error('  npm run submit 0x02f869... https://sepolia.base.org 84532');
-    console.error('  npm run submit 0x02f869... --wait  # Uses default RPC from chain ID');
-    console.error('  npm run submit 0x02f869... https://custom-rpc.com  # Custom RPC');
+    console.error('  pnpm run submit 0x02f869... https://sepolia.base.org 84532');
+    console.error('  pnpm run submit 0x02f869... --wait  # Uses default RPC from chain ID');
+    console.error('  pnpm run submit 0x02f869... https://custom-rpc.com  # Custom RPC');
     console.error('\nOptions:');
     console.error('  --wait, -w    Wait for transaction confirmation');
     console.error('\nEnvironment Variables:');
@@ -33,7 +33,7 @@ async function main() {
   console.log('=== Submit Ethereum Transaction ===\n');
   
   // Extract and display signer address before submitting
-  const signerAddress = getSignerAddress(signedTx, chainId);
+  const signerAddress = await getSignerAddress(signedTx, chainId);
   if (signerAddress) {
     console.log(`Signer Address: ${signerAddress}`);
   }

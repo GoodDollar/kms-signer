@@ -1,0 +1,2 @@
+# only install package versions that have been public for at least 3 days (supply-chain protection)
+minimumReleaseAge: 4320
