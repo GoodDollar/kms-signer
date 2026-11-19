@@ -14,22 +14,22 @@ Native Ethereum transaction signing using AWS KMS with `ECC_SECG_P256K1` (secp25
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Configure AWS credentials
 aws configure
 
 # Option 1: Create a new KMS key (KMS generates the key pair)
-npm run setup
+pnpm run setup
 
 # Option 2: Import an existing Ethereum private key into KMS
-npm run import <PRIVATE_KEY_HEX> [ALIAS_NAME]
+pnpm run import <PRIVATE_KEY_HEX> [ALIAS_NAME]
 
 # Sign a native ETH transfer
-npm run sign -- alias/ethereum-signing-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1
+pnpm run sign alias/ethereum-signing-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1
 
 # Sign a contract call
-npm run sign -- alias/ethereum-signing-key call 0xToken... "transfer(address,uint256)" 0xRecipient... 1000000000000000000
+pnpm run sign alias/ethereum-signing-key call 0xToken... "transfer(address,uint256)" 0xRecipient... 1000000000000000000
 ```
 
 ## Usage
@@ -66,79 +66,79 @@ const signedTx = await signTransaction(keyId, {
 
 ```bash
 # Setup KMS key (creates new key with alias - KMS generates the key pair)
-npm run setup [alias-name]
+pnpm run setup [alias-name]
 
 # Import existing Ethereum private key into KMS
-npm run import <PRIVATE_KEY_HEX> [ALIAS_NAME] [TAG_KEY1=TAG_VALUE1] [TAG_KEY2=TAG_VALUE2] ...
+pnpm run import <PRIVATE_KEY_HEX> [ALIAS_NAME] [TAG_KEY1=TAG_VALUE1] [TAG_KEY2=TAG_VALUE2] ...
 
 # Sign native ETH transfer
-npm run sign -- <KEY_ID> transfer <TO_ADDRESS> [VALUE] [CHAIN_ID] [OPTIONS]
+pnpm run sign <KEY_ID> transfer <TO_ADDRESS> [VALUE] [CHAIN_ID] [OPTIONS]
 
 # Sign contract call
-npm run sign -- <KEY_ID> call <CONTRACT_ADDRESS> "<FUNCTION_SIGNATURE>" [PARAMS...] [OPTIONS]
+pnpm run sign <KEY_ID> call <CONTRACT_ADDRESS> "<FUNCTION_SIGNATURE>" [PARAMS...] [OPTIONS]
 
 # Sign message
-npm run sign -- <KEY_ID> message "Hello, Ethereum!"
+pnpm run sign <KEY_ID> message "Hello, Ethereum!"
 
 # Get Ethereum address from KMS key
-npm run sign -- <KEY_ID> address
+pnpm run sign <KEY_ID> address
 
 # Get public key from KMS key
-npm run sign -- <KEY_ID> publickey
+pnpm run sign <KEY_ID> publickey
 
 # Submit signed transaction to blockchain
-npm run submit <SIGNED_TX> [RPC_URL] [CHAIN_ID] [--wait]
+pnpm run submit <SIGNED_TX> [RPC_URL] [CHAIN_ID] [--wait]
 
 # List all KMS keys
-npm run list
+pnpm run list
 ```
 
 **Examples:**
 ```bash
 # Create a new key (KMS generates the key pair)
-npm run setup my-ethereum-key
+pnpm run setup my-ethereum-key
 
 # Import an existing private key into KMS
-npm run import 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef my-imported-key
+pnpm run import 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef my-imported-key
 # Or without 0x prefix:
-npm run import 1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef my-imported-key
+pnpm run import 1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef my-imported-key
 
 # Sign a native ETH transfer
-npm run sign -- alias/my-ethereum-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1
+pnpm run sign alias/my-ethereum-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1
 
 # Sign and submit a transfer in one step
-npm run sign -- alias/my-ethereum-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1 --submit --wait
+pnpm run sign alias/my-ethereum-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1 --submit --wait
 
 # Sign a contract call (ERC20 transfer)
-npm run sign -- alias/my-ethereum-key call 0xToken... "transfer(address,uint256)" 0xRecipient... 1000000000000000000
+pnpm run sign alias/my-ethereum-key call 0xToken... "transfer(address,uint256)" 0xRecipient... 1000000000000000000
 
 # Sign a contract call with ETH value
-npm run sign -- alias/my-ethereum-key call 0xContract... "deposit()" --value 0.1 --chain-id 1
+pnpm run sign alias/my-ethereum-key call 0xContract... "deposit()" --value 0.1 --chain-id 1
 
 # Sign and submit a contract call
-npm run sign -- alias/my-ethereum-key call 0xContract... "approve(address,uint256)" 0xSpender... 1000 --submit --wait
+pnpm run sign alias/my-ethereum-key call 0xContract... "approve(address,uint256)" 0xSpender... 1000 --submit --wait
 
 # Sign a message
-npm run sign -- alias/my-ethereum-key message "Hello, Ethereum!"
+pnpm run sign alias/my-ethereum-key message "Hello, Ethereum!"
 
 # Get address
-npm run sign -- alias/my-ethereum-key address
+pnpm run sign alias/my-ethereum-key address
 
 # Get public key
-npm run sign -- alias/my-ethereum-key publickey
+pnpm run sign alias/my-ethereum-key publickey
 
 # Sign and submit in one command (recommended)
-npm run sign -- alias/my-ethereum-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1 --submit --wait
+pnpm run sign alias/my-ethereum-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1 --submit --wait
 
 # Alternative: Submit a signed transaction separately (two-step process)
 # Step 1: Sign the transaction
-npm run sign -- alias/my-ethereum-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1
+pnpm run sign alias/my-ethereum-key transfer 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb 0.001 1
 
 # Step 2: Submit the signed transaction
-npm run submit 0x02f869... https://eth.llamarpc.com 1 --wait
+pnpm run submit 0x02f869... https://eth.llamarpc.com 1 --wait
 
 # Or use chain ID to auto-select RPC (Base Sepolia example)
-npm run submit 0x02f869... 84532 --wait
+pnpm run submit 0x02f869... 84532 --wait
 ```
 
 **Command Options:**
@@ -213,11 +213,11 @@ When you import an existing private key:
 
 ```bash
 # Build TypeScript
-npm run build
+pnpm run build
 
 # Clean build artifacts
-npm run clean
+pnpm run clean
 
 # Run in development mode
-npm run dev
+pnpm run dev
 ```

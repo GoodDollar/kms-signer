@@ -2,10 +2,9 @@
  * Submit signed Ethereum transactions to blockchain
  */
 
-import Web3 from 'web3';
-import { Transaction, FeeMarketEIP1559Transaction } from '@ethereumjs/tx';
-import { Common } from '@ethereumjs/common';
+import { parseTransaction, recoverTransactionAddress, type Hex, type TransactionSerialized } from 'viem';
 import { CHAIN_RPC_URLS, EXPLORER_URLS } from './constants';
+import { createRpcClient } from './rpc';
 
 export interface SubmitOptions {
   signedTransaction: string;
@@ -43,54 +42,36 @@ export async function submitTransaction(
     );
   }
   
-  // Create web3 instance
-  const web3 = new Web3(providerUrl);
-  
+  const client = createRpcClient(providerUrl);
+
   try {
-    // Send transaction and get the promise
-    const sendTx = web3.eth.sendSignedTransaction(signedTransaction);
-    
-    // Set up event handlers for immediate feedback
-    sendTx.on('transactionHash', (hash: string) => {
-      console.log(`\n✓ Transaction submitted successfully!`);
-      console.log(`  Transaction Hash: ${hash}`);
-      console.log(`  Explorer: ${getExplorerUrl(chainId, hash)}`);
-    });
-    
-    if (waitForConfirmation) {
-      // Wait for the transaction receipt (included in a block)
-      console.log('⏳ Waiting for transaction confirmation...');
-      const receipt = await sendTx;
-      
-      // Get current block number to calculate confirmations
-      const currentBlock = await web3.eth.getBlockNumber();
-      const confirmations = receipt.blockNumber ? currentBlock - receipt.blockNumber + 1 : 0;
-      
-      // receipt.status is a number: 1 for success, 0 for failure
-      const status = typeof receipt.status === 'boolean' 
-        ? (receipt.status ? 1 : 0)
-        : (receipt.status !== undefined ? Number(receipt.status) : undefined);
-      
-      return {
-        txHash: receipt.transactionHash,
-        blockNumber: receipt.blockNumber,
-        confirmations: confirmations,
-        status: status,
-      };
-    } else {
-      // Just wait for transaction hash (submission to mempool)
-      // Use a promise that resolves when transactionHash event fires
-      const txHash = await new Promise<string>((resolve, reject) => {
-        sendTx.on('transactionHash', resolve);
-        sendTx.on('error', reject);
-      });
-      
-      return {
-        txHash: txHash,
-      };
+    // Broadcast the signed transaction
+    const txHash = await client.sendRawTransaction({ serializedTransaction: signedTransaction as Hex });
+
+    console.log(`\n✓ Transaction submitted successfully!`);
+    console.log(`  Transaction Hash: ${txHash}`);
+    console.log(`  Explorer: ${getExplorerUrl(chainId, txHash)}`);
+
+    if (!waitForConfirmation) {
+      return { txHash };
     }
+
+    // Wait for the transaction receipt (included in a block)
+    console.log('⏳ Waiting for transaction confirmation...');
+    const receipt = await client.waitForTransactionReceipt({ hash: txHash });
+
+    // Get current block number to calculate confirmations
+    const currentBlock = await client.getBlockNumber();
+    const blockNumber = Number(receipt.blockNumber);
+
+    return {
+      txHash: receipt.transactionHash,
+      blockNumber,
+      confirmations: Number(currentBlock - receipt.blockNumber + 1n),
+      status: receipt.status === 'success' ? 1 : 0,
+    };
   } catch (error: any) {
-    const errorMessage = error.reason || error.message || String(error);
+    const errorMessage = error.shortMessage || error.reason || error.message || String(error);
     throw new Error(`Transaction failed: ${errorMessage}`);
   }
 }
@@ -98,45 +79,12 @@ export async function submitTransaction(
 /**
  * Decodes a signed transaction to extract the signer address
  */
-export function getSignerAddress(signedTransaction: string, chainId?: number): string | undefined {
+export async function getSignerAddress(signedTransaction: string, _chainId?: number): Promise<string | undefined> {
   try {
-    const txBuffer = Buffer.from(signedTransaction.slice(2), 'hex');
-    
-    // Check transaction type (EIP-2718)
-    const txType = txBuffer[0];
-    
-    // Try to decode based on transaction type
-    // Typed transactions (EIP-2718) have type byte 0x01-0x7f
-    if (txType >= 0x01 && txType <= 0x7f) {
-      // Typed transaction (EIP-2718) - try EIP-1559 first
-      try {
-        const common = chainId 
-          ? Common.custom({ chainId, networkId: chainId }, { hardfork: 'merge' })
-          : undefined;
-        const tx = common
-          ? FeeMarketEIP1559Transaction.fromSerializedTx(txBuffer, { common })
-          : FeeMarketEIP1559Transaction.fromSerializedTx(txBuffer);
-        return tx.getSenderAddress().toString();
-      } catch (e) {
-        // If EIP-1559 fails, try legacy (shouldn't happen, but be safe)
-        const common = chainId 
-          ? Common.custom({ chainId, networkId: chainId }, { hardfork: 'merge' })
-          : undefined;
-        const tx = common
-          ? Transaction.fromSerializedTx(txBuffer, { common })
-          : Transaction.fromSerializedTx(txBuffer);
-        return tx.getSenderAddress().toString();
-      }
-    } else {
-      // Legacy transaction
-      const common = chainId 
-        ? Common.custom({ chainId, networkId: chainId }, { hardfork: 'merge' })
-        : undefined;
-      const tx = common
-        ? Transaction.fromSerializedTx(txBuffer, { common })
-        : Transaction.fromSerializedTx(txBuffer);
-      return tx.getSenderAddress().toString();
-    }
+    const serializedTransaction = signedTransaction as TransactionSerialized;
+    // make sure the payload is a well-formed transaction before recovering the signer
+    parseTransaction(serializedTransaction);
+    return await recoverTransactionAddress({ serializedTransaction });
   } catch (error) {
     // If decoding fails, return undefined
     return undefined;

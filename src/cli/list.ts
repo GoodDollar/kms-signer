@@ -99,8 +99,8 @@ async function main() {
   const region = process.env.AWS_REGION || 'us-east-1';
   
   // Parse command line arguments
-  // Note: When using npm run, use -- separator: npm run list -- --tag KEY=VALUE
-  // Or use direct format: npm run list -- KEY=VALUE
+  // Note: When using pnpm run, use -- separator: pnpm run list --tag KEY=VALUE
+  // Or use direct format: pnpm run list KEY=VALUE
   let includeDetails = true;
   let tagFilter: { key: string; value: string } | undefined;
   
@@ -122,13 +122,13 @@ async function main() {
         tagFilter = { key: match[1], value: match[2] };
       } else {
         console.error(`Error: Invalid tag format. Expected KEY=VALUE, got: ${tagArg}`);
-        console.error('Usage: npm run list -- [--simple] [--tag KEY=VALUE]');
-        console.error('   or: npm run list -- KEY=VALUE');
+        console.error('Usage: pnpm run list [--simple] [--tag KEY=VALUE]');
+        console.error('   or: pnpm run list KEY=VALUE');
         process.exit(1);
       }
     } else if (arg.includes('=') && arg.indexOf('=') > 0) {
       // Format: KEY=VALUE (positional argument)
-      // This handles: npm run list -- KEY=VALUE
+      // This handles: pnpm run list KEY=VALUE
       // Note: npm may consume --tag flag, so KEY=VALUE might come through directly
       const match = arg.match(/^([^=]+)=(.*)$/);
       if (match) {
@@ -138,7 +138,7 @@ async function main() {
         }
       }
     } else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: npm run list [OPTIONS]');
+      console.log('Usage: pnpm run list [OPTIONS]');
       console.log('');
       console.log('Options:');
       console.log('  --simple              Show simplified table (no details)');
@@ -147,13 +147,13 @@ async function main() {
       console.log('  --help, -h            Show this help message');
       console.log('');
       console.log('Examples:');
-      console.log('  npm run list');
-      console.log('  npm run list --simple');
-      console.log('  npm run list -- --tag Purpose=EthereumSigning');
-      console.log('  npm run list -- Purpose=EthereumSigning');
+      console.log('  pnpm run list');
+      console.log('  pnpm run list --simple');
+      console.log('  pnpm run list --tag Purpose=EthereumSigning');
+      console.log('  pnpm run list Purpose=EthereumSigning');
       console.log('');
-      console.log('Note: When using npm run, use -- separator before flags:');
-      console.log('  npm run list -- --tag KEY=VALUE');
+      console.log('Note: When using pnpm run, use -- separator before flags:');
+      console.log('  pnpm run list --tag KEY=VALUE');
       process.exit(0);
     }
   }

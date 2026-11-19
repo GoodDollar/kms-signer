@@ -15,8 +15,7 @@ export const CHAIN_RPC_URLS: Record<number, string> = {
   8453: 'https://mainnet.base.org', // Base
   
   // Testnets
-  5: 'https://goerli.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161', // Goerli
-  11155111: 'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161', // Sepolia
+  11155111: 'https://ethereum-sepolia-rpc.publicnode.com', // Sepolia
   80001: 'https://rpc-mumbai.maticvigil.com', // Mumbai (Polygon testnet)
   97: 'https://data-seed-prebsc-1-s1.binance.org:8545', // BSC Testnet
   43113: 'https://api.avax-test.network/ext/bc/C/rpc', // Avalanche Fuji
@@ -27,7 +26,6 @@ export const CHAIN_RPC_URLS: Record<number, string> = {
 // Blockchain explorer URLs
 export const EXPLORER_URLS: Record<number, string> = {
   1: 'https://etherscan.io/tx/',
-  5: 'https://goerli.etherscan.io/tx/',
   11155111: 'https://sepolia.etherscan.io/tx/',
   137: 'https://polygonscan.com/tx/',
   80001: 'https://mumbai.polygonscan.com/tx/',

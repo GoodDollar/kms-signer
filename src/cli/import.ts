@@ -13,15 +13,15 @@ async function main() {
   const region = process.env.AWS_REGION || 'us-east-1';
   
   if (!privateKeyHex) {
-    console.error('Usage: npm run import <PRIVATE_KEY_HEX> [ALIAS_NAME] [TAG_KEY1=TAG_VALUE1] [TAG_KEY2=TAG_VALUE2] ...');
+    console.error('Usage: pnpm run import <PRIVATE_KEY_HEX> [ALIAS_NAME] [TAG_KEY1=TAG_VALUE1] [TAG_KEY2=TAG_VALUE2] ...');
     console.error('');
     console.error('Examples:');
-    console.error('  npm run import 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef');
-    console.error('  npm run import 1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef my-key');
-    console.error('  npm run import 0x1234... my-key Project=MyProject Team=DevOps');
+    console.error('  pnpm run import 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef');
+    console.error('  pnpm run import 1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef my-key');
+    console.error('  pnpm run import 0x1234... my-key Project=MyProject Team=DevOps');
     console.error('');
     console.error('Tags can also be provided via KMS_TAGS environment variable (JSON format):');
-    console.error('  KMS_TAGS=\'[{"TagKey":"Project","TagValue":"MyProject"}]\' npm run import 0x1234...');
+    console.error('  KMS_TAGS=\'[{"TagKey":"Project","TagValue":"MyProject"}]\' pnpm run import 0x1234...');
     console.error('');
     console.error('Note: The private key can be provided with or without the 0x prefix.');
     process.exit(1);
@@ -99,7 +99,7 @@ async function main() {
     console.log('1. Update your .env file with:');
     console.log(`   KMS_KEY_ID=${result.keyId}`);
     console.log(`   KMS_KEY_ARN=${result.keyArn}`);
-    console.log('2. Run: npm run sign');
+    console.log('2. Run: pnpm run sign');
     console.log('\n⚠️  Remember to securely delete the original private key from your system!');
   } catch (error: any) {
     console.error('\nImport failed:', error.message);
